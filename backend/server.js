@@ -4,61 +4,44 @@ const fs = require('fs');
 const path = require('path');
 
 const app = express();
-const PORT = 5000; 
+app.use(cors());
+app.use(express.json());
 
-// Middlewares
-app.use(cors()); 
-app.use(express.json()); 
+const DATA_DIR = path.join(__dirname, 'data');
+const TASKS_FILE = path.join(DATA_DIR, 'tasks.json');
+const NOTES_FILE = path.join(DATA_DIR, 'notes.json');
 
-const filePath = path.join(__dirname, 'data', 'tasks.json');
+if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR);
+if (!fs.existsSync(TASKS_FILE)) fs.writeFileSync(TASKS_FILE, '[]');
+if (!fs.existsSync(NOTES_FILE)) fs.writeFileSync(NOTES_FILE, '[]');
 
-const readTasks = () => {
-    try {
-        const data = fs.readFileSync(filePath, 'utf-8');
-        return JSON.parse(data);
-    } catch (error) {
-        return [];
-    }
-};
+const helperRead = (filePath) => JSON.parse(fs.readFileSync(filePath, 'utf8'));
+const helperWrite = (filePath, data) => fs.writeFileSync(filePath, JSON.stringify(data, null, 2));
 
-const writeTasks = (tasks) => {
-    fs.writeFileSync(filePath, JSON.stringify(tasks, null, 2), 'utf-8');
-};
-
-// --- ROTAS DA API ---
-
-app.get('/api/tasks', (req, res) => {
-    const tasks = readTasks();
-    res.json(tasks);
-});
-
-
+// ROTAS DE TAREFAS
+app.get('/api/tasks', (req, res) => res.json(helperRead(TASKS_FILE)));
 app.post('/api/tasks', (req, res) => {
-    const { title, category, context, energy_required, duration_minutes } = req.body;
-
-    if (!title || !category || !context || !energy_required) {
-        return res.status(400).json({ error: 'Preencha todos os campos obrigatórios!' });
-    }
-
-    const tasks = readTasks();
-
-    const newTask = {
-        id: Date.now().toString(), 
-        title,
-        category,          
-        context,           
-        energy_required,  
-        duration_minutes: duration_minutes || 30,
-        status: 'pending',
-        created_at: new Date()
-    };
-
+    const tasks = helperRead(TASKS_FILE);
+    const newTask = { id: Date.now(), ...req.body };
     tasks.push(newTask);
-    writeTasks(tasks);
-
+    helperWrite(TASKS_FILE, tasks);
     res.status(201).json(newTask);
 });
 
-app.listen(PORT, () => {
-    console.log(`🚀 Servidor rodando lindamente em http://localhost:${PORT}`);
+// ROTAS DE NOTAS (AGENDA RÁPIDA)
+app.get('/api/notes', (req, res) => res.json(helperRead(NOTES_FILE)));
+app.post('/api/notes', (req, res) => {
+    const notes = helperRead(NOTES_FILE);
+    const newNote = { id: Date.now(), content: req.body.content };
+    notes.push(newNote);
+    helperWrite(NOTES_FILE, notes);
+    res.status(201).json(newNote);
 });
+app.delete('/api/notes/:id', (req, res) => {
+    let notes = helperRead(NOTES_FILE);
+    notes = notes.filter(n => n.id !== parseInt(req.params.id));
+    helperWrite(NOTES_FILE, notes);
+    res.json({ message: "Nota removida" });
+});
+
+app.listen(5000, () => console.log('Servidor TIMEFLOW rodando na porta 5000'));

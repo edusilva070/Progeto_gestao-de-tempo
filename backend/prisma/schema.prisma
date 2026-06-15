@@ -1,0 +1,42 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+// Tabela de Usuários
+model User {
+  id        String   @id @default(uuid())
+  name      String
+  email     String   @unique
+  password  String
+  createdAt DateTime @default(now())
+  tasks     Task[]
+  notes     Note[]
+}
+
+// Tabela de Tarefas / Blocos de Tempo
+model Task {
+  id              String   @id @default(uuid())
+  title           String
+  category        String   // trabalho, livre, prazo, reuniao
+  context         String   // casa, faculdade, trabalho, transito
+  energyRequired  String   // alta, baixa
+  durationMinutes Int      @default(30)
+  status          String   @default("pending")
+  createdAt       DateTime @default(now())
+  userId          String
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// Tabela de Notas / Agenda Rápida
+model Note {
+  id        Int      @id @default(autoincrement())
+  content   String
+  createdAt DateTime @default(now())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
